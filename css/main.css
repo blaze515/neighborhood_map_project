@@ -126,7 +126,7 @@ a, a:hover, a:focus {
     height: 90%;
 }
 
-.sidebar-btn {
+.sidebar-btn, .sidebar-form {
     margin-bottom: 5px !important;
     margin-left: 5px !important;
 }

@@ -1,14 +1,16 @@
 // These are the highlighted places that will be shown to the user.
 var locations = [
-    {title: 'Mueller Alamo Drafthouse', location: {lat: 30.2983881, lng: -97.7069012}},
-    {title: 'Mueller Lake Park', location: {lat: 30.2967706, lng: -97.7080463}},
-    {title: 'The University of Texas at Austin', location: {lat: 30.2849185, lng: -97.7362507}},
-    {title: 'LBJ Presidential Library', location: {lat: 30.2858226, lng: -97.7314551}},
-    {title: 'Texas Capital', location: {lat: 30.2746652, lng: -97.7425445}},
-    {title: 'Zilker Metropolitan Park', location: {lat: 30.2669624, lng: -97.7750533}},
-    {title: 'Congress Avenue Bridge', location: {lat: 30.2617381, lng: -97.7473572}},
-    {title: 'Esther\'s Follies', location: {lat: 30.26629, lng: -97.739697}}
+    {title: 'Mueller Alamo Drafthouse', location: {lat: 30.2983881, lng: -97.7069012}, type: "Entertainment"},
+    {title: 'Mueller Lake Park', location: {lat: 30.2967706, lng: -97.7080463}, type: "Park"},
+    {title: 'The University of Texas at Austin', location: {lat: 30.2849185, lng: -97.7362507}, type: "Educational"},
+    {title: 'LBJ Presidential Library', location: {lat: 30.2858226, lng: -97.7314551}, type: "Educational"},
+    {title: 'Texas Capital', location: {lat: 30.2746652, lng: -97.7425445}, type: "Landmark"},
+    {title: 'Zilker Metropolitan Park', location: {lat: 30.2669624, lng: -97.7750533}, type: "Park"},
+    {title: 'Congress Avenue Bridge', location: {lat: 30.2617381, lng: -97.7473572}, type: "Landmark"},
+    {title: 'Esther\'s Follies', location: {lat: 30.26629, lng: -97.739697}, type: "Entertainment"}
 ];
+
+var filterTypes = ["None", "Entertainment", "Park", "Educational", "Landmark"];
 
 // Global variable to create a single Google map
 var map;
@@ -32,8 +34,85 @@ var ViewModel = function () {
         self.placeList.push(new Locale(dataItem));
     });
 
-    this.toggleSidebar = function() {
-        $('#sidebar').toggleClass('active');
+    this.selectedMarker = ko.observable({});
+
+    this.isActive = ko.observable('');
+
+    self.toggleSidebar = function() {
+        if (self.isActive() === ''){
+            self.isActive('active');
+        } else {
+            self.isActive('');
+        }
+    };
+
+    self.filters = ko.observableArray(filterTypes);
+    self.filter = ko.observable('');
+    self.filteredItems = ko.computed(function() {
+        var filter = self.filter();
+        if (!filter || filter == "None") {
+            return self.placeList();
+        } else {
+            return ko.utils.arrayFilter(self.placeList(), function(i) {
+                return i.filterType() == filter;
+            });
+        }
+    });
+
+    /*
+     Setting up Google Markers and listeners with ViewModel
+     */
+
+    // Style the markers a bit. This will be our listing marker icon.
+    var defaultIcon = makeMarkerIcon('0091ff');
+
+    // Create a "highlighted location" marker color for when the user
+    // mouses over the marker.
+    var highlightedIcon = makeMarkerIcon('FFFF24');
+
+    var largeInfowindow = new google.maps.InfoWindow();
+
+    // The following group uses the location array to create an array of markers on initialize.
+    for (var i = 0; i < locations.length; i++) {
+        // Get the position from the location array.
+        var position = locations[i].location;
+        var title = locations[i].title;
+        // Create a marker per location, and put into markers array.
+        var marker = new google.maps.Marker({
+            position: position,
+            title: title,
+            animation: google.maps.Animation.DROP,
+            icon: defaultIcon,
+            id: i
+        });
+
+        // Create an onclick event to open the large infowindow at each marker.
+        marker.addListener('click', function() {
+            populateInfoWindow(this, largeInfowindow);
+            // Set current marker to selected marker
+            self.selectedMarker(this);
+        });
+        // Two event listeners - one for mouseover, one for mouseout,
+        // to change the colors back and forth.
+        marker.addListener('mouseover', function() {
+            this.setIcon(highlightedIcon);
+        });
+        marker.addListener('mouseout', function() {
+            this.setIcon(defaultIcon);
+        });
+
+        // Push the marker to our array of markers.
+        markers.push(marker);
+    }
+
+    // Call initMap()
+    initMap();
+
+    // Method to change the selected marker on the map when a location is selected from the list
+    self.changeSelectedMarker = function () {
+        var marker = getMarker(this.title());
+        self.selectedMarker(marker);
+        populateInfoWindow(marker, largeInfowindow);
     }
 };
 
@@ -44,16 +123,19 @@ var Locale = function (data) {
     this.location = ko.computed(function () {
         return {lat: this.lat, lng: this.lng};
     }, this);
+    this.filterType = ko.observable(data.type);
 };
 
 ko.applyBindings(new ViewModel());
 
-// // On-click listener for sidebar navigation
-// $(document).ready(function () {
-//     $('#sidebarCollapse').on('click', function () {
-//         $('#sidebar').toggleClass('active');
-//     });
-// });
+// Helper function to get the marker from the marker array with a given title
+function getMarker(markerTitle) {
+    for (i=0; i < markers.length; i++){
+        if (markers[i].title === markerTitle){
+            return markers[i];
+        }
+    }
+}
 
 
 
@@ -61,7 +143,6 @@ ko.applyBindings(new ViewModel());
 /**
  * Google map functions not handled by KnockoutJS
  */
-// Callback using Google API when page loads
 function initMap() {
     // Create a styles array to use with the map.
     var styles = [
@@ -139,7 +220,7 @@ function initMap() {
         mapTypeControl: false
     });
 
-    var largeInfowindow = new google.maps.InfoWindow();
+
 
     // Initialize the drawing manager.
     var drawingManager = new google.maps.drawing.DrawingManager({
@@ -153,41 +234,6 @@ function initMap() {
         }
     });
 
-    // Style the markers a bit. This will be our listing marker icon.
-    var defaultIcon = makeMarkerIcon('0091ff');
-
-    // Create a "highlighted location" marker color for when the user
-    // mouses over the marker.
-    var highlightedIcon = makeMarkerIcon('FFFF24');
-
-    // The following group uses the location array to create an array of markers on initialize.
-    for (var i = 0; i < locations.length; i++) {
-        // Get the position from the location array.
-        var position = locations[i].location;
-        var title = locations[i].title;
-        // Create a marker per location, and put into markers array.
-        var marker = new google.maps.Marker({
-            position: position,
-            title: title,
-            animation: google.maps.Animation.DROP,
-            icon: defaultIcon,
-            id: i
-        });
-        // Push the marker to our array of markers.
-        markers.push(marker);
-        // Create an onclick event to open the large infowindow at each marker.
-        marker.addListener('click', function() {
-            populateInfoWindow(this, largeInfowindow);
-        });
-        // Two event listeners - one for mouseover, one for mouseout,
-        // to change the colors back and forth.
-        marker.addListener('mouseover', function() {
-            this.setIcon(highlightedIcon);
-        });
-        marker.addListener('mouseout', function() {
-            this.setIcon(defaultIcon);
-        });
-    }
 
     // Add an event listener so that the polygon is captured,  call the
     // searchWithinPolygon function. This will show the markers in the polygon,
@@ -224,9 +270,10 @@ function initMap() {
 // one infowindow which will open at the marker that is clicked, and populate based
 // on that markers position.
 function populateInfoWindow(marker, infowindow) {
+    console.log("populate info window method called");
     // Check to make sure the infowindow is not already opened on this marker.
     if (infowindow.marker != marker) {
-        // Clear the infowindow content to give the streetview time to load.
+        // Clear the infowindow content to give the content time to load.
         infowindow.setContent('');
         infowindow.marker = marker;
         // Make sure the marker property is cleared if the infowindow is closed.

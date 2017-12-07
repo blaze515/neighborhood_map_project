@@ -34,14 +34,19 @@
         <!-- Begin wrapper -->
         <div class="wrapper">
             <!-- Sidebar Holder -->
-            <nav id="sidebar">
+            <nav id="sidebar" data-bind="css: isActive">
                 <div class="sidebar-header">
                     <h4>Explore Austin</h4>
                 </div>
 
                 <ul class="list-unstyled components">
-                    <!-- ko foreach: placeList -->
-                    <li><button class="btn btn-outline-warning btn-sm sidebar-btn" data-bind="text: title"></button></li>
+                    <li class="form-group">
+                        <label for="filterType">&nbsp;Apply Filter:</label>
+                        <select class="form-control" id="filterType" data-bind="options: filters, value: filter">
+                        </select>
+                    </li>
+                    <!-- ko foreach: filteredItems -->
+                    <li><button class="btn btn-outline-warning btn-sm sidebar-btn" data-bind="click: $parent.changeSelectedMarker, text: title"></button></li>
                     <!-- /ko -->
                 </ul>
             </nav>
@@ -85,16 +90,17 @@
                 integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ"
                 crossorigin="anonymous"></script>
 
-        <!-- Google Maps -->
-        <script src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry,drawing&key=AIzaSyBqfTvUSzbV6oo-JzdswjINdh6iQNy1iBE&callback=initMap"
-                 async defer></script>
+        <!-- Load Google Maps Libaries -->
+        <script src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry,drawing&key=AIzaSyBqfTvUSzbV6oo-JzdswjINdh6iQNy1iBE" defer></script>
 
         <!-- Add KnockoutJS and run scripts to project -->
         <script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/knockout/3.4.2/knockout-min.js'></script>
         <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
         <script>window.jQuery || document.write('<script src="js/vendor/jquery-3.2.1.min.js"><\/script>')</script>
         <script src="js/plugins.js"></script>
-        <script src="js/main.js"></script>
+
+        <!-- Defer so loads after Google Maps libraries and can initialize the map after creating markers -->
+        <script src="js/main.js" defer></script>
 
 
         <!-- Google Analytics: change UA-XXXXX-Y to be your site's ID. -->
