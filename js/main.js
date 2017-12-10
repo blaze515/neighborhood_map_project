@@ -377,10 +377,8 @@ function getReviewFromFoursquareId(fid, marker, infoWindow){
         var content = '<h5 id="infoContent">' + marker.title + '</h5>';
         // Get top three reviews only
         for(var i=0; i < 3; i ++){
-            content = content + '<br/><div class="infoText">' + items[i].text + '</div>';
+            content = content + '<br/><div class="infoText">' + items[i].text + ' -- ' + items[i].user.firstName + '</div>';
         }
-        console.log("set content");
-        console.log(content);
         infoWindow.setContent(content);
     }).fail(function(){
        infoWindow.setContent('<br/><div class="infoText">Failed to load Foursquare Tips</div>');
