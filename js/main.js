@@ -1,13 +1,15 @@
 // These are the highlighted places that will be shown to the user.
 var locations = [
-    {title: 'Mueller Alamo Drafthouse', location: {lat: 30.2983881, lng: -97.7069012}, type: "Entertainment"},
+    {title: 'Alamo Drafthouse Cinema - Mueller', location: {lat: 30.2983881, lng: -97.7069012}, type: "Entertainment"},
     {title: 'Mueller Lake Park', location: {lat: 30.2967706, lng: -97.7080463}, type: "Park"},
     {title: 'The University of Texas at Austin', location: {lat: 30.2849185, lng: -97.7362507}, type: "Educational"},
     {title: 'LBJ Presidential Library', location: {lat: 30.2858226, lng: -97.7314551}, type: "Educational"},
-    {title: 'Texas Capital', location: {lat: 30.2746652, lng: -97.7425445}, type: "Landmark"},
+    {title: 'Texas State Capitol', location: {lat: 30.2746652, lng: -97.7425445}, type: "Landmark"},
     {title: 'Zilker Metropolitan Park', location: {lat: 30.2669624, lng: -97.7750533}, type: "Park"},
     {title: 'Congress Avenue Bridge', location: {lat: 30.2617381, lng: -97.7473572}, type: "Landmark"},
-    {title: 'Esther\'s Follies', location: {lat: 30.26629, lng: -97.739697}, type: "Entertainment"}
+    {title: 'Esther\'s Follies', location: {lat: 30.26629, lng: -97.739697}, type: "Entertainment"},
+    {title: 'Austin City Limits - Moody Theater', location: {lat: 30.2655492, lng: -97.7473226}, type: "Entertainment"},
+    {title: 'Antone\'s Nightclub', location: {lat: 30.2660481, lng: -97.7404002}, type: "Entertainment"}
 ];
 
 var filterTypes = ["None", "Entertainment", "Park", "Educational", "Landmark"];
@@ -20,6 +22,9 @@ var markers = [];
 
 // This global polygon variable is to ensure only ONE polygon is rendered.
 var polygon = null;
+
+// This info window is used to ensure only ONE infoWindow is rendered
+var largeInfowindow = new google.maps.InfoWindow();
 
 
 /**
@@ -50,60 +55,20 @@ var ViewModel = function () {
     self.filter = ko.observable('');
     self.filteredItems = ko.computed(function() {
         var filter = self.filter();
-        if (!filter || filter == "None") {
+        if (!filter || filter === "None") {
             return self.placeList();
         } else {
             return ko.utils.arrayFilter(self.placeList(), function(i) {
-                return i.filterType() == filter;
+                return i.filterType() === filter;
             });
         }
     });
 
     /*
-     Setting up Google Markers and listeners with ViewModel
+     Setting up Google Markers and listeners within ViewModel
      */
 
-    // Style the markers a bit. This will be our listing marker icon.
-    var defaultIcon = makeMarkerIcon('0091ff');
-
-    // Create a "highlighted location" marker color for when the user
-    // mouses over the marker.
-    var highlightedIcon = makeMarkerIcon('FFFF24');
-
-    var largeInfowindow = new google.maps.InfoWindow();
-
-    // The following group uses the location array to create an array of markers on initialize.
-    for (var i = 0; i < locations.length; i++) {
-        // Get the position from the location array.
-        var position = locations[i].location;
-        var title = locations[i].title;
-        // Create a marker per location, and put into markers array.
-        var marker = new google.maps.Marker({
-            position: position,
-            title: title,
-            animation: google.maps.Animation.DROP,
-            icon: defaultIcon,
-            id: i
-        });
-
-        // Create an onclick event to open the large infowindow at each marker.
-        marker.addListener('click', function() {
-            populateInfoWindow(this, largeInfowindow);
-            // Set current marker to selected marker
-            self.selectedMarker(this);
-        });
-        // Two event listeners - one for mouseover, one for mouseout,
-        // to change the colors back and forth.
-        marker.addListener('mouseover', function() {
-            this.setIcon(highlightedIcon);
-        });
-        marker.addListener('mouseout', function() {
-            this.setIcon(defaultIcon);
-        });
-
-        // Push the marker to our array of markers.
-        markers.push(marker);
-    }
+    changeMarkers(locations);
 
     // Call initMap()
     initMap();
@@ -126,7 +91,10 @@ var Locale = function (data) {
     this.filterType = ko.observable(data.type);
 };
 
-ko.applyBindings(new ViewModel());
+// Create ViewModel variable to be able to subscribe to later
+var myViewModel = new ViewModel();
+
+ko.applyBindings(myViewModel);
 
 // Helper function to get the marker from the marker array with a given title
 function getMarker(markerTitle) {
@@ -137,6 +105,82 @@ function getMarker(markerTitle) {
     }
 }
 
+// Helper function to update the array of markers
+function changeMarkers(current_locations) {
+
+    // Style the markers a bit. This will be our listing marker icon.
+    var defaultIcon = makeMarkerIcon('0091ff');
+
+    // Create a "highlighted location" marker color for when the user
+    // mouses over the marker.
+    var highlightedIcon = makeMarkerIcon('FFFF24');
+
+    // Loop through markers and set map to null for each
+    for (var i = 0; i < markers.length; i++) {
+        markers[i].setMap(null);
+    }
+
+    // Reset markers each time
+    markers =  [];
+
+    // The following group uses the location array to create an array of markers on initialize.
+    for (var i = 0; i < current_locations.length; i++) {
+        // Get the position from the location array.
+        var position = current_locations[i].location;
+        var title = current_locations[i].title;
+        // Create a marker per location, and put into markers array.
+        var marker = new google.maps.Marker({
+            position: position,
+            title: title,
+            animation: google.maps.Animation.DROP,
+            icon: defaultIcon,
+            id: i
+        });
+
+        // Create an onclick event to open the large infowindow at each marker.
+        marker.addListener('click', function () {
+            populateInfoWindow(this, largeInfowindow);
+            // Set current marker to selected marker
+            myViewModel.selectedMarker(this);
+        });
+        // Two event listeners - one for mouseover, one for mouseout,
+        // to change the colors back and forth.
+        marker.addListener('mouseover', function () {
+            this.setIcon(highlightedIcon);
+        });
+        marker.addListener('mouseout', function () {
+            this.setIcon(defaultIcon);
+        });
+
+        // Push the marker to our array of markers.
+        markers.push(marker);
+    }
+};
+
+/**
+ * Helper subscribe function to update the markers on the map when
+ * the associated item is selected from the list
+ *
+  */
+myViewModel.filteredItems.subscribe(function(newValues){
+    var locationCopy = [];
+    if(myViewModel.filter() === "None"){
+        locationCopy = locations;
+    } else {
+        for (var i=0; i < locations.length; i++){
+            for (var j=0; j < newValues.length; j++){
+                if (locations[i].title === myViewModel.filteredItems()[j].title()){
+                    locationCopy.push(locations[i]);
+                }
+            }
+        }
+    }
+    changeMarkers(locationCopy);
+    // Rerender the markers
+    for (var i = 0; i < markers.length; i++) {
+        markers[i].setMap(map);
+    }
+});
 
 
 
@@ -215,7 +259,7 @@ function initMap() {
 
     map = new google.maps.Map(document.getElementById('map'), {
         center: {lat: 30.2672, lng: -97.7431},
-        zoom: 13,
+        zoom: 11,
         styles: styles,
         mapTypeControl: false
     });
@@ -270,7 +314,6 @@ function initMap() {
 // one infowindow which will open at the marker that is clicked, and populate based
 // on that markers position.
 function populateInfoWindow(marker, infowindow) {
-    console.log("populate info window method called");
     // Check to make sure the infowindow is not already opened on this marker.
     if (infowindow.marker != marker) {
         // Clear the infowindow content to give the content time to load.
@@ -280,8 +323,11 @@ function populateInfoWindow(marker, infowindow) {
         infowindow.addListener('closeclick', function() {
             infowindow.marker = null;
         });
-        var content = '<div>' + marker.title + '</div>';
-        infowindow.setContent(content);
+
+        // var content = '<h5 id="infoContent">' + marker.title + '</h5>';
+        // infowindow.setContent(content);
+        // Get the foursquare reviews
+        getFoursquareReviews(marker, infowindow);
         // Open the infowindow on the correct marker.
         infowindow.open(map, marker);
     }
@@ -301,3 +347,42 @@ function makeMarkerIcon(markerColor) {
     return markerImage;
 }
 
+
+/**
+ *  Methods to handle Foursquare calls when the info window is populated
+ *
+ */
+
+// Helper method to make an AJAX call to return some Yelp reviews for each location
+function getFoursquareReviews(marker, infoWindow) {
+    var baseFoursquareUrl = "https://api.foursquare.com/v2/venues/search?v=20161016";
+    var foursquareAuth = "&client_id=CCNYGKJN5N4U5IGZMAPQAD4DKBGUFYUEQF3NGZ1113UEEHL5&client_secret=10XV4FYB5F5QISKXPBKSVGKO3KOWLBIVKONSRXK0BBR0FHFG";
+    var searchUrl = baseFoursquareUrl + "&near=Austin,TX&query=" + marker.title + "&intent=checkin" + foursquareAuth;
+    $.getJSON(encodeURI(searchUrl)).done(function(data){
+        var foursquareId = data.response.venues[0].id;
+        getReviewFromFoursquareId(foursquareId, marker, infoWindow);
+
+    }).fail(function(){
+        infoWindow.setContent('<br/><div class="infoText">Failed to load Foursquare Information</div>');
+    });
+}
+
+// Helper function to get Foursquare reviews based on the location's Foursquare ID
+function getReviewFromFoursquareId(fid, marker, infoWindow){
+    var foursquareAuth = "&client_id=CCNYGKJN5N4U5IGZMAPQAD4DKBGUFYUEQF3NGZ1113UEEHL5&client_secret=10XV4FYB5F5QISKXPBKSVGKO3KOWLBIVKONSRXK0BBR0FHFG";
+    var foursquareTipsUrl = "https://api.foursquare.com/v2/venues/" + fid
+        + "/tips?v=20161016&sort=popular&limit=3" + foursquareAuth;
+    $.getJSON(encodeURI(foursquareTipsUrl)).done(function(data){
+        var items = data.response.tips.items;
+        var content = '<h5 id="infoContent">' + marker.title + '</h5>';
+        // Get top three reviews only
+        for(var i=0; i < 3; i ++){
+            content = content + '<br/><div class="infoText">' + items[i].text + '</div>';
+        }
+        console.log("set content");
+        console.log(content);
+        infoWindow.setContent(content);
+    }).fail(function(){
+       infoWindow.setContent('<br/><div class="infoText">Failed to load Foursquare Tips</div>');
+    });
+}

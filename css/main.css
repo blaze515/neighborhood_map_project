@@ -99,7 +99,7 @@ textarea {
 
 @import "https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700";
 
-h1, h2, h3, h4 {
+h1, h2, h3, h4, h5 {
     font-family: 'Spectral SC', serif;
 }
 
@@ -108,7 +108,7 @@ body {
     background: #fafafa;
 }
 
-p {
+p, .infoText {
     font-family: 'Roboto', sans-serif;
     font-size: 1.1em;
     font-weight: 300;
