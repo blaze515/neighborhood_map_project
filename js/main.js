@@ -78,7 +78,8 @@ var ViewModel = function () {
         var marker = getMarker(this.title());
         self.selectedMarker(marker);
         populateInfoWindow(marker, largeInfowindow);
-        marker.setAnimation()
+        marker.setAnimation(google.maps.Animation.BOUNCE);
+        setTimeout(function(){ marker.setAnimation(null); }, 2100);
     }
 };
 
@@ -118,9 +119,6 @@ function changeMarkers(current_locations) {
     // Create a "highlighted location" marker color for when the user
     // mouses over the marker.
     var highlightedIcon = makeMarkerIcon('FFFF24');
-
-    // Create an icon color to highlight the selected marker
-    var selectedIcon = makeMarkerIcon('FF8C00');
 
     // Loop through markers and set map to null for each
     for (var i = 0; i < markers.length; i++) {
