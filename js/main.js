@@ -24,7 +24,10 @@ var markers = [];
 var polygon = null;
 
 // This info window is used to ensure only ONE infoWindow is rendered
-var largeInfowindow = new google.maps.InfoWindow();
+var largeInfowindow;
+
+// Create ViewModel variable to be able to subscribe to later
+var myViewModel;
 
 
 /**
@@ -70,14 +73,12 @@ var ViewModel = function () {
 
     changeMarkers(locations);
 
-    // Call initMap()
-    initMap();
-
     // Method to change the selected marker on the map when a location is selected from the list
     self.changeSelectedMarker = function () {
         var marker = getMarker(this.title());
         self.selectedMarker(marker);
         populateInfoWindow(marker, largeInfowindow);
+        marker.setAnimation()
     }
 };
 
@@ -91,10 +92,13 @@ var Locale = function (data) {
     this.filterType = ko.observable(data.type);
 };
 
-// Create ViewModel variable to be able to subscribe to later
-var myViewModel = new ViewModel();
 
-ko.applyBindings(myViewModel);
+function mapsError() {
+    $('<div class="row"><h2 class="col-12-md error">Google Maps failed to load!</h2></div>').appendTo('#map');
+}
+
+
+
 
 // Helper function to get the marker from the marker array with a given title
 function getMarker(markerTitle) {
@@ -114,6 +118,9 @@ function changeMarkers(current_locations) {
     // Create a "highlighted location" marker color for when the user
     // mouses over the marker.
     var highlightedIcon = makeMarkerIcon('FFFF24');
+
+    // Create an icon color to highlight the selected marker
+    var selectedIcon = makeMarkerIcon('FF8C00');
 
     // Loop through markers and set map to null for each
     for (var i = 0; i < markers.length; i++) {
@@ -139,9 +146,15 @@ function changeMarkers(current_locations) {
 
         // Create an onclick event to open the large infowindow at each marker.
         marker.addListener('click', function () {
+            var markerSelf = this;
+
             populateInfoWindow(this, largeInfowindow);
             // Set current marker to selected marker
             myViewModel.selectedMarker(this);
+
+            // Animate the marker with a bounce to show it is selected
+            markerSelf.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(function(){ markerSelf.setAnimation(null); }, 2100);
         });
         // Two event listeners - one for mouseover, one for mouseout,
         // to change the colors back and forth.
@@ -149,38 +162,15 @@ function changeMarkers(current_locations) {
             this.setIcon(highlightedIcon);
         });
         marker.addListener('mouseout', function () {
-            this.setIcon(defaultIcon);
+                this.setIcon(defaultIcon);
         });
 
         // Push the marker to our array of markers.
         markers.push(marker);
     }
-};
+}
 
-/**
- * Helper subscribe function to update the markers on the map when
- * the associated item is selected from the list
- *
-  */
-myViewModel.filteredItems.subscribe(function(newValues){
-    var locationCopy = [];
-    if(myViewModel.filter() === "None"){
-        locationCopy = locations;
-    } else {
-        for (var i=0; i < locations.length; i++){
-            for (var j=0; j < newValues.length; j++){
-                if (locations[i].title === myViewModel.filteredItems()[j].title()){
-                    locationCopy.push(locations[i]);
-                }
-            }
-        }
-    }
-    changeMarkers(locationCopy);
-    // Rerender the markers
-    for (var i = 0; i < markers.length; i++) {
-        markers[i].setMap(map);
-    }
-});
+
 
 
 
@@ -188,70 +178,76 @@ myViewModel.filteredItems.subscribe(function(newValues){
  * Google map functions not handled by KnockoutJS
  */
 function initMap() {
+    myViewModel = new ViewModel();
+
+    ko.applyBindings(myViewModel);
+
+    largeInfowindow = new google.maps.InfoWindow()
+
     // Create a styles array to use with the map.
     var styles = [
         {
             featureType: 'water',
             stylers: [
-                { color: '#19a0d8' }
+                {color: '#19a0d8'}
             ]
-        },{
+        }, {
             featureType: 'administrative',
             elementType: 'labels.text.stroke',
             stylers: [
-                { color: '#ffffff' },
-                { weight: 6 }
+                {color: '#ffffff'},
+                {weight: 6}
             ]
-        },{
+        }, {
             featureType: 'administrative',
             elementType: 'labels.text.fill',
             stylers: [
-                { color: '#e85113' }
+                {color: '#e85113'}
             ]
-        },{
+        }, {
             featureType: 'road.highway',
             elementType: 'geometry.stroke',
             stylers: [
-                { color: '#efe9e4' },
-                { lightness: -40 }
+                {color: '#efe9e4'},
+                {lightness: -40}
             ]
-        },{
+        }, {
             featureType: 'transit.station',
             stylers: [
-                { weight: 9 },
-                { hue: '#e85113' }
+                {weight: 9},
+                {hue: '#e85113'}
             ]
-        },{
+        }, {
             featureType: 'road.highway',
             elementType: 'labels.icon',
             stylers: [
-                { visibility: 'off' }
+                {visibility: 'off'}
             ]
-        },{
+        }, {
             featureType: 'water',
             elementType: 'labels.text.stroke',
             stylers: [
-                { lightness: 100 }
+                {lightness: 100}
             ]
-        },{
+        }, {
             featureType: 'water',
             elementType: 'labels.text.fill',
             stylers: [
-                { lightness: -100 }
+                {lightness: -100}
             ]
-        },{
+        }, {
             featureType: 'poi',
             elementType: 'geometry',
             stylers: [
-                { visibility: 'on' },
-                { color: '#f0e4d3' }
+                {visibility: 'on'},
+                {color: '#f0e4d3'}
             ]
-        },{
+        }, {
             featureType: 'road.highway',
             elementType: 'geometry.fill',
             stylers: [
-                { color: '#efe9e4' },
-                { lightness: -25 }
+                {color: '#efe9e4'},
+                {lightness: -25}
             ]
         }
     ];
@@ -263,7 +259,6 @@ function initMap() {
         styles: styles,
         mapTypeControl: false
     });
-
 
 
     // Initialize the drawing manager.
@@ -282,7 +277,7 @@ function initMap() {
     // Add an event listener so that the polygon is captured,  call the
     // searchWithinPolygon function. This will show the markers in the polygon,
     // and hide any outside of it.
-    drawingManager.addListener('overlaycomplete', function(event) {
+    drawingManager.addListener('overlaycomplete', function (event) {
         // First, check if there is an existing polygon.
         // If there is, get rid of it and remove the markers
         if (polygon) {
@@ -308,7 +303,39 @@ function initMap() {
         bounds.extend(markers[i].position);
     }
     map.fitBounds(bounds);
+
+    // Add listener to adjust bounds as user resizes their window
+    google.maps.event.addDomListener(window, 'resize', function() {
+        console.log("this was called");
+        map.fitBounds(bounds);
+    });
+
+    /**
+     * Helper subscribe function to update the markers on the map when
+     * the associated item is selected from the list
+     *
+     */
+    myViewModel.filteredItems.subscribe(function(newValues){
+        var locationCopy = [];
+        if(myViewModel.filter() === "None"){
+            locationCopy = locations;
+        } else {
+            for (var i=0; i < locations.length; i++){
+                for (var j=0; j < newValues.length; j++){
+                    if (locations[i].title === myViewModel.filteredItems()[j].title()){
+                        locationCopy.push(locations[i]);
+                    }
+                }
+            }
+        }
+        changeMarkers(locationCopy);
+        // Rerender the markers
+        for (var i = 0; i < markers.length; i++) {
+            markers[i].setMap(map);
+        }
+    });
 }
+
 
 // This function populates the infowindow when the marker is clicked. We'll only allow
 // one infowindow which will open at the marker that is clicked, and populate based
